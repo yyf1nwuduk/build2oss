@@ -1,0 +1,15 @@
+{
+  "name": "iout.io",
+  "version": "1.0.0",
+  "description": "iout.io",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build2oss": "npx hexo ****"
+  },
+  "author": "autre",
+  "license": "ISC",
+  "devDependencies": {
+    "vuepress": "^1.4.1"
+  }
+}

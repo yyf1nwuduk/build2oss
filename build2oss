@@ -1,0 +1,111 @@
+#!/bin/sh
+
+showhelp() {
+  echo "Usage: build2oss  command ...[parameters]....
+Parameters:
+  --help, -h               展示帮助.
+  --bucket, -b             阿里云oss的bucket名
+  --dest, -d               生成的静态文件目录，默认为dist
+  --registry, -s           自定义的npm源，可选
+  --headers, -h            自定义头部，如：Content-Type:text/html; charset=utf-8，多个用#连接
+  --run, -r                自定义package.json中的scripts，可选
+"
+}
+
+##程序开始
+_process(){
+  _bucket=""
+  _registry=""
+  _run=""
+  _dest="dist"
+  _headers="Content-Type:text/html; charset=utf-8"
+  while [ ${#} -gt 0 ]; do
+    case "${1}" in
+      --help | -h)
+        showhelp
+        return
+        ;;
+      --bucket | -b)
+        _bucket="$2"
+        shift
+        ;;
+      --dest | -d)
+        _dest="$2"
+        shift
+        ;;
+      --registry | -s)
+        _registry="$2"
+        shift
+        ;;
+      --headers | -h)
+        _headers="$2"
+        shift
+        ;;
+      --run | -r)
+        _run="$2"
+        shift
+        ;;
+      *)
+        echo "Unknown parameter : $1"
+        #exit 1
+        ;;
+    esac
+
+    shift 1
+  done
+  
+  echo "============== cd to /var/app ============="
+  cd /var/app
+  echo 
+  if [ -n "$_registry" ]; then
+    echo "============== npm config set registry "$_registry" ============="
+    npm config set registry $_registry
+    echo 
+  fi
+  echo 
+  if [ -d node_modules ]; then
+    echo "============== node modules installed already ============="
+  else
+    echo "============== Installing node modules ============="
+    npm install
+  fi
+  echo 
+  if [ -n "$_run" ]; then
+    echo "============== npm run "$_run" ============="
+    npm run $_run
+  else
+    if [ `grep -c "\"build2oss\"" /var/app/package.json` -eq '0' ]; then
+        echo "==============scripts no build2oss ============="
+        exit 1
+    else
+        echo "============== npm run build2oss ============="
+        npm run build2oss
+    fi
+  fi
+  echo
+  if [ -n "$_bucket" ]; then
+    echo "============== cp to oss "$_bucket" ============="
+    ossutil cp -rf $_dest oss://$_bucket/ -c ossutilconfig
+    echo "============== cp over ============="
+  else
+    echo "============== no bucket name ============="
+    exit 1
+  fi
+  echo 
+  echo "============== set meta "$_headers"============="
+  ossutil set-meta oss://$_bucket/ "$_headers" --exclude "*.*" -r -f -c ossutilconfig
+  echo "============== set meta over ============="
+}
+
+_startswith() {
+  _str="$1"
+  _sub="$2"
+  echo "$_str" | grep "^$_sub" >/dev/null 2>&1
+}
+
+main() {
+  [ -z "$1" ] && showhelp && return
+  if _startswith "$1" '-'; then _process "$@"; else "$@"; fi
+}
+
+main "$@"
